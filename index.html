@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>เนินท้าลุย</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  :root{
+    --sky-top:#8fb8d8; --sky-bottom:#dfe9ee;
+    --dirt-dark:#3c2a1e; --dirt-mid:#5a3f2b; --road:#4a4a52;
+    --panel:#23262f; --panel-2:#2f333e; --amber:#e8b23a; --amber-2:#f4d06a;
+    --red:#c0392b; --red-2:#e74c3c; --green:#3fae4a; --ink:#eef1f5; --ink-dim:#a9b0bd;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#12141a;
+    font-family:'Segoe UI',system-ui,-apple-system,'Tahoma',sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:none;}
+  #wrap{position:fixed;inset:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+  canvas{display:block;width:100%;height:100%;}
+
+  .btn{
+    position:absolute;bottom:calc(22px + env(safe-area-inset-bottom,0px));
+    width:96px;height:96px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:#fff;letter-spacing:.3px;
+    border:4px solid rgba(255,255,255,.25);
+    box-shadow:0 8px 0 rgba(0,0,0,.35), 0 10px 18px rgba(0,0,0,.4);
+    -webkit-tap-highlight-color:transparent; touch-action:none; cursor:pointer;
+    transition:transform .05s, box-shadow .05s;
+  }
+  .btn:active,.btn.down{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.4);}
+  #gas{right:26px;background:radial-gradient(circle at 34% 30%, #58d16a, var(--green) 70%);}
+  #brake{left:26px;background:radial-gradient(circle at 34% 30%, #e7645a, var(--red) 70%);}
+  #boost{
+    position:absolute;bottom:calc(132px + env(safe-area-inset-bottom,0px));right:44px;
+    width:60px;height:60px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #ffe08a, var(--amber) 70%);
+    border:3px solid rgba(255,255,255,.3);color:#3a2a06;font-weight:800;font-size:12px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 0 rgba(0,0,0,.3);
+  }
+  #boost:active,#boost.down{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  #boost.disabled{filter:grayscale(1) brightness(.6);}
+
+  #muteBtn{
+    position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); right:14px;
+    width:38px;height:38px;border-radius:50%;background:rgba(20,22,28,.6);
+    border:1px solid rgba(255,255,255,.2); color:#fff; font-size:17px;
+    display:flex;align-items:center;justify-content:center; cursor:pointer; z-index:5;
+  }
+
+  .overlay{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,12,18,.72); color:var(--ink); text-align:center; padding:20px;
+    overflow-y:auto;
+  }
+  .card{
+    background:var(--panel); border:1px solid #3a3f4c; border-radius:18px;
+    padding:26px 28px; max-width:380px; width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.5); margin:auto;
+  }
+  .card h1{margin:0 0 6px; font-size:24px; letter-spacing:.2px;}
+  .card p{margin:0 0 16px; color:var(--ink-dim); font-size:13.5px; line-height:1.5;}
+  .stat-row{display:flex; justify-content:space-between; background:var(--panel-2); border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:14px;}
+  .stat-row b{color:var(--amber-2);}
+  .go{
+    margin-top:10px; width:100%; padding:13px; border:none; border-radius:10px;
+    background:linear-gradient(180deg,#58d16a,#3fae4a); color:#08260c; font-weight:800; font-size:16px;
+    cursor:pointer; box-shadow:0 4px 0 #2c7d33;
+  }
+  .go:active{transform:translateY(3px); box-shadow:0 1px 0 #2c7d33;}
+  .go.secondary{background:linear-gradient(180deg,#f4d06a,#e8b23a); box-shadow:0 4px 0 #a97a12; color:#3a2a06;}
+  .go.secondary:active{box-shadow:0 1px 0 #a97a12;}
+  .go.ghost{background:var(--panel-2); box-shadow:0 4px 0 #15161b; color:#dfe3ea;}
+  .go.ghost:active{box-shadow:0 1px 0 #15161b;}
+  .hidden{display:none !important;}
+  #hint{position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    color:#fff; font-size:13px; background:rgba(0,0,0,.35); padding:6px 14px; border-radius:20px; opacity:.85;}
+
+  .wallet-pill{display:flex; align-items:center; justify-content:center; gap:8px; background:var(--panel-2);
+    border-radius:20px; padding:8px 16px; margin:0 auto 16px; width:fit-content; font-weight:800; font-size:16px;}
+  .coin-dot{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b0,#f4c542 55%,#c9891a);
+    border:1px solid #a6700f; display:inline-block;}
+
+  .tabbar{display:flex; gap:6px; margin-bottom:14px;}
+  .tab{flex:1; padding:9px 4px; border-radius:9px; background:var(--panel-2); color:var(--ink-dim);
+    font-size:13px; font-weight:700; cursor:pointer; border:1px solid transparent;}
+  .tab.active{background:#3a3f4e; color:#fff; border-color:#4a5063;}
+
+  .shop-list{display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; margin-bottom:14px; padding-right:2px;}
+  .shop-item{display:flex; align-items:center; gap:12px; background:var(--panel-2); border-radius:12px; padding:10px 12px; text-align:left;}
+  .swatch{width:38px;height:26px;border-radius:6px;flex-shrink:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25);}
+  .shop-info{flex:1; min-width:0;}
+  .shop-info .name{font-size:14px; font-weight:700; margin-bottom:2px;}
+  .shop-info .desc{font-size:11.5px; color:var(--ink-dim);}
+  .buyBtn{border:none; border-radius:8px; padding:8px 12px; font-weight:800; font-size:12.5px; cursor:pointer; white-space:nowrap;}
+  .buyBtn.buy{background:linear-gradient(180deg,#f4d06a,#e8b23a); color:#3a2a06;}
+  .buyBtn.equip{background:linear-gradient(180deg,#6fb8ef,#3d84c9); color:#04203a;}
+  .buyBtn.equipped{background:#3fae4a; color:#08260c;}
+  .buyBtn.locked{background:#3a3d47; color:#8a90a0; cursor:default;}
+  .backRow{display:flex; gap:8px;}
+  .backRow .go{margin-top:0;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="hint">แตะขวาเพื่อเร่ง · แตะซ้ายเพื่อเบรก/ถอย</div>
+  <div id="muteBtn">🔊</div>
+
+  <div id="boost" class="btn">⚡<br>×<span id="boostCount">3</span></div>
+  <div id="brake" class="btn">◀ เบรก</div>
+  <div id="gas" class="btn">เร่ง ▶</div>
+
+  <div id="startScreen" class="overlay">
+    <div class="card">
+      <h1>🚙 เนินท้าลุย</h1>
+      <p>ขับรถข้ามเนินให้ถึงธงโดยไม่ให้น้ำมันหมดหรือรถพลิกคว่ำ เก็บเหรียญและขวดน้ำมันระหว่างทาง!</p>
+      <div class="wallet-pill"><span class="coin-dot"></span><span id="walletShow">0</span></div>
+      <div class="stat-row"><span>ด่านที่เลือก</span><b id="levelLabel">1. ทุ่งหญ้าเนินเตี้ย</b></div>
+      <button class="go" id="startBtn">เริ่มเกม</button>
+      <button class="go secondary" id="levelBtnStart">🗺️ เลือกด่าน</button>
+      <button class="go ghost" id="shopBtnStart">🛒 ร้านค้า</button>
+    </div>
+  </div>
+
+  <div id="levelScreen" class="overlay hidden">
+    <div class="card">
+      <h1>เลือกด่าน</h1>
+      <div class="shop-list" id="levelList"></div>
+      <button class="go ghost" id="levelBackBtn">กลับ</button>
+    </div>
+  </div>
+
+  <div id="shopScreen" class="overlay hidden">
+    <div class="card">
+      <h1>ร้านค้า</h1>
+      <div class="wallet-pill"><span class="coin-dot"></span><span id="walletShopShow">0</span></div>
+      <div class="tabbar">
+        <div class="tab active" data-tab="skins">สีรถ</div>
+        <div class="tab" data-tab="upgrades">อัปเกรด</div>
+      </div>
+      <div class="shop-list" id="shopList"></div>
+      <button class="go ghost" id="shopBackBtn">กลับ</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="overlay hidden">
+    <div class="card">
+      <h1 id="endTitle">หมดน้ำมัน!</h1>
+      <div class="stat-row"><span>ระยะทาง</span><b id="endDist">0 ม.</b></div>
+      <div class="stat-row"><span>เหรียญที่เก็บได้</span><b id="endCoins">0</b></div>
+      <div class="stat-row"><span>ระยะทางไกลสุด</span><b id="endBest">0 ม.</b></div>
+      <button class="go" id="retryBtn">ลองอีกครั้ง</button>
+      <button class="go secondary hidden" id="nextLevelBtn">ด่านต่อไป ▶</button>
+      <button class="go ghost" id="shopBtnEnd">🛒 ร้านค้า</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio||1, 2);
+  var W=0, H=0;
+
+  function resize(){
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W*DPR; canvas.height = H*DPR;
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  // ---------- constants ----------
+  var PXPM = 6;
+  var FINISH_M = 700;
+  var GROUND_BASE = 60;
+  var WHEEL_R = 20;
+  var AXLE = 62;
+  var BODY_LIFT = 30;
+  var GRAVITY = 340;
+  var ENGINE_BASE = 300;
+  var BRAKE = 340;
+  var FRICTION = 0.9;
+  var MAX_SPEED = 260;
+  var MAX_REV = -130;
+  var BOOST_MULT = 1.9;
+  var BOOST_TIME = 1.6;
+  var FUEL_BASE = 100;
+  var FUEL_BASE_DRAIN = 1.1;
+  var FUEL_THROTTLE_DRAIN = 2.4;
+  var FUEL_BOOST_DRAIN = 9;
+  var ANGLE_CRASH_BASE = 0.95;
+  var ANGLE_CRASH_SPEED_FACTOR = 0.32;
+  var CRASH_HOLD_TIME = 0.22;
+
+  // ---------- levels ----------
+  var LEVELS = [
+    {name:'ทุ่งหญ้าเนินเตี้ย', desc:'เนินเตี้ยๆ เหมาะสำหรับมือใหม่', dist:500, amp:0.7, rough:0},
+    {name:'เขาสูงชัน',        desc:'เนินเริ่มสูงขึ้น ระวังพลิกคว่ำ', dist:650, amp:1.0, rough:0.15},
+    {name:'หุบเขาคดเคี้ยว',   desc:'ทางขึ้นลงถี่ ต้องคุมความเร็ว', dist:800, amp:1.15, rough:0.3},
+    {name:'ทะเลทรายคลื่นทราย', desc:'เนินทรายสูงชันต่อเนื่อง', dist:950, amp:1.3, rough:0.45},
+    {name:'ภูเขาไฟอันตราย',   desc:'ด่านโหด เนินชันสุดขีด', dist:1200, amp:1.5, rough:0.6}
+  ];
+
+  // ---------- shop data ----------
+  var SKINS = [
+    {id:'red',   name:'แดงคลาสสิก', price:0,    colors:['#e15b4a','#a8281a','#7a1c11']},
+    {id:'blue',  name:'น้ำเงินสายฟ้า', price:500,  colors:['#4a90e1','#
